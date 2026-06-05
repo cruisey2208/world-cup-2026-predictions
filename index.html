@@ -1,30 +1,70 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>World Cup Predictions - Test</title>
+  <title>World Cup Predictions</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .container {
+      text-align: center;
+      background: white;
+      padding: 50px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .btn-container {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-primary {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .btn-primary:hover {
+      background-color: #45a049;
+    }
+    .btn-secondary {
+      background-color: #2196F3;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background-color: #0b7dda;
+    }
+  </style>
 </head>
 <body>
-  <h1>Firebase Initialization Test</h1>
-  <div id="status">Testing...</div>
-
-  <script type="module">
-    import { db, auth } from "./js/firebase-config.js";
-    
-    const status = document.getElementById("status");
-    
-    try {
-      if (db) {
-        status.innerHTML = "✅ Firestore connected!";
-        console.log("Firestore database:", db);
-      }
-      if (auth) {
-        status.innerHTML += "<br>✅ Auth connected!";
-        console.log("Auth:", auth);
-      }
-    } catch (error) {
-      status.innerHTML = "❌ Error: " + error.message;
-      console.error("Firebase error:", error);
-    }
-  </script>
+  <div class="container">
+    <h1>⚽ World Cup Predictions</h1>
+    <p>Make your predictions and compete with friends!</p>
+    <div class="btn-container">
+      <a href="/world-cup-predictions/pages/auth.html" class="btn-primary">Get Started</a>
+      <a href="/world-cup-predictions/pages/leaderboard.html" class="btn-secondary">View Leaderboard</a>
+    </div>
+  </div>
 </body>
 </html>
