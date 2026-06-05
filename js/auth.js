@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged as firebaseOnAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 import { 
@@ -119,7 +119,7 @@ function getCurrentUser() {
 // ============================================
 
 function onAuthStateChanged(callback) {
-  return onAuthStateChanged(auth, (user) => {
+  return firebaseOnAuthStateChanged(auth, (user) => {
     if (user) {
       console.log("User is signed in:", user.uid);
       callback(user);
