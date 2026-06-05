@@ -180,7 +180,7 @@
         
         // Redirect after 2 seconds
         setTimeout(() => {
-          window.location.href = "/pages/predict.html";
+          window.location.href = "/world-cup-2026-predictions/pages/predict.html";
         }, 2000);
 
       } catch (error) {
@@ -203,7 +203,7 @@
 
       try {
         await login(email, password);
-        window.location.href = "/pages/predict.html";
+        window.location.href = "/world-cup-2026-predictions/pages/predict.html";
 
       } catch (error) {
         errorDiv.textContent = "❌ " + error.message;
