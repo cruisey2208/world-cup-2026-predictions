@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Make Predictions - World Cup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin: 0;
+    }
+    .logout-btn {
+      padding: 10px 20px;
+      background-color: #d9534f;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .logout-btn:hover {
+      background-color: #c9302c;
+    }
+    .matches-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 20px;
+    }
+    .match-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .match-header {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 15px;
+    }
+    .teams {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin: 20px 0;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .vs {
+      color: #999;
+    }
+    .prediction-form {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #333;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .submit-btn:hover {
+      background-color: #45a049;
+    }
+    .locked-message {
+      background-color: #fcf8e3;
+      color: #8a6d3b;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      border: 1px solid #faebcc;
+    }
+    .error {
+      color: #d9534f;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚽ World Cup Predictions</h1>
+    <button class="logout-btn" onclick="handleLogout()">Logout</button>
+  </header>
+
+  <div id="locked-section" style="display: none;">
+    <div class="locked-message">
+      🔒 Tournament has started! You can no longer submit predictions.
+      <a href="/pages/leaderboard.html">View Leaderboard</a>
+    </div>
+  </div>
+
+  <div id="matches-container" class="matches-container"></div>
+
+  <script type="module">
+    import { getAllMatches, getUserPredictions, submitPrediction, getUserPredictionForMatch } from "../js/predictions.js";
+    import { logout } from "../js/auth.js";
+
+    // Load and display all matches
+    async function loadMatches() {
+      const matches = await getAllMatches();
+      const predictions = await getUserPredictions();
+      const container = document.getElementById("matches-container");
+
+      container.innerHTML = "";
+
+      matches.forEach((match) => {
+        // Check if user has already predicted this match
+        const existingPrediction = predictions[match.id];
+
+        const matchHTML = `
+          <div class="match-card">
+            <div class="match-header">
+              Match ${match.matchNumber} • ${new Date(match.matchDate.toDate()).toLocaleDateString()}
+            </div>
+            
+            <div class="teams">
+              <div>${match.homeTeam}</div>
+              <div class="vs">vs</div>
+              <div>${match.awayTeam}</div>
+            </div>
+
+            <form class="prediction-form" onsubmit="submitMatchPrediction(event, '${match.id}', '${match.homeTeam}', '${match.awayTeam}')">
+              <div class="form-group">
+                <label>Who will win?</label>
+                <select name="winner" required>
+                  <option value="">Select a winner...</option>
+                  <option value="${match.homeTeam}" ${existingPrediction?.predictedWinner === match.homeTeam ? 'selected' : ''}>
+                    ${match.homeTeam}
+                  </option>
+                  <option value="${match.awayTeam}" ${existingPrediction?.predictedWinner === match.awayTeam ? 'selected' : ''}>
+                    ${match.awayTeam}
+                  </option>
+                  <option value="Draw" ${existingPrediction?.predictedWinner === 'Draw' ? 'selected' : ''}>
+                    Draw
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Predicted Score (e.g., "2-1")</label>
+                <input 
+                  type="text" 
+                  name="score" 
+                  placeholder="1-0" 
+                  value="${existingPrediction?.predictedScore || ''}"
+                  required
+                >
+              </div>
+
+              <button type="submit" class="submit-btn">
+                ${existingPrediction ? 'Update Prediction' : 'Make Prediction'}
+              </button>
+            </form>
+            <div class="error" style="display: none;"></div>
+          </div>
+        `;
+
+        container.innerHTML += matchHTML;
+      });
+    }
+
+    // Submit prediction
+    window.submitMatchPrediction = async (event, matchId, homeTeam, awayTeam) => {
+      event.preventDefault();
+
+      const form = event.target;
+      const winner = form.querySelector('select[name="winner"]').value;
+      const score = form.querySelector('input[name="score"]').value;
+      const errorDiv = form.querySelector('.error');
+
+      try {
+        await submitPrediction(matchId, winner, score);
+        errorDiv.style.display = "none";
+        // Reload predictions to show update
+        loadMatches();
+      } catch (error) {
+        errorDiv.textContent = "❌ " + error.message;
+        errorDiv.style.display = "block";
+      }
+    };
+
+    // Logout
+    window.handleLogout = async () => {
+      await logout();
+      window.location.href = "/pages/auth.html";
+    };
+
+    // Initial load
+    loadMatches();
+  </script>
+</body>
+</html>

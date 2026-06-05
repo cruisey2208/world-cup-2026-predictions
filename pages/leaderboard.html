@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Leaderboard - World Cup Predictions</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin: 0;
+    }
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .primary-btn {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .primary-btn:hover {
+      background-color: #45a049;
+    }
+    .secondary-btn {
+      background-color: #d9534f;
+      color: white;
+    }
+    .secondary-btn:hover {
+      background-color: #c9302c;
+    }
+    .leaderboard-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+      padding: 15px;
+      text-align: left;
+    }
+    td {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    tr:hover {
+      background-color: #f9f9f9;
+    }
+    .rank {
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .medal {
+      font-size: 24px;
+      margin-right: 5px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏆 Leaderboard</h1>
+    <div class="nav-buttons">
+      <button class="primary-btn" onclick="goToPredictions()">Make Predictions</button>
+      <button class="secondary-btn" onclick="handleLogout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="leaderboard-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Username</th>
+          <th>Total Score</th>
+          <th>Correct Winners</th>
+          <th>Correct Scores</th>
+          <th>Accuracy</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-body">
+        <tr>
+          <td colspan="6" class="loading">Loading leaderboard...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { getLeaderboard, watchLeaderboard } from "../js/leaderboard.js";
+    import { logout } from "../js/auth.js";
+
+    // Display leaderboard
+    function displayLeaderboard(leaderboard) {
+      const tbody = document.getElementById("leaderboard-body");
+      tbody.innerHTML = "";
+
+      const medals = ["🥇", "🥈", "🥉"];
+
+      leaderboard.forEach((user, index) => {
+        const rank = index + 1;
+        const medal = medals[index] || "•";
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td class="rank">${medal} ${rank}</td>
+          <td>${user.username}</td>
+          <td><strong>${user.totalScore}</strong></td>
+          <td>${user.correctWinners} / ${user.totalPredictions}</td>
+          <td>${user.correctScores}</td>
+          <td>${user.accuracy}%</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Logout
+    window.handleLogout = async () => {
+      await logout();
+      window.location.href = "/pages/auth.html";
+    };
+
+    window.goToPredictions = () => {
+      window.location.href = "/pages/predict.html";
+    };
+
+    // Initial load (one-time)
+    const leaderboard = await getLeaderboard();
+    displayLeaderboard(leaderboard);
+
+    // Set up real-time updates
+    // Whenever someone updates their prediction, leaderboard will update automatically
+    watchLeaderboard((updatedLeaderboard) => {
+      displayLeaderboard(updatedLeaderboard);
+    });
+  </script>
+</body>
+</html>

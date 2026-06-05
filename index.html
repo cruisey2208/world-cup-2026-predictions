@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>World Cup Predictions - Test</title>
+</head>
+<body>
+  <h1>Firebase Initialization Test</h1>
+  <div id="status">Testing...</div>
+
+  <script type="module">
+    import { db, auth } from "./js/firebase-config.js";
+    
+    const status = document.getElementById("status");
+    
+    try {
+      if (db) {
+        status.innerHTML = "✅ Firestore connected!";
+        console.log("Firestore database:", db);
+      }
+      if (auth) {
+        status.innerHTML += "<br>✅ Auth connected!";
+        console.log("Auth:", auth);
+      }
+    } catch (error) {
+      status.innerHTML = "❌ Error: " + error.message;
+      console.error("Firebase error:", error);
+    }
+  </script>
+</body>
+</html>

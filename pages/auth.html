@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sign Up - World Cup Predictions</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .container {
+      border: 1px solid #ddd;
+      padding: 30px;
+      border-radius: 8px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .toggle-link {
+      text-align: center;
+      margin-top: 15px;
+    }
+    .toggle-link a {
+      color: #4CAF50;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+    .success {
+      color: green;
+      margin-top: 10px;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- SIGN UP FORM -->
+    <div id="signup-section">
+      <h2>Create an Account</h2>
+      <form id="signup-form">
+        <div class="form-group">
+          <label for="signup-username">Username</label>
+          <input 
+            type="text" 
+            id="signup-username" 
+            placeholder="Choose a username" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="signup-email">Email</label>
+          <input 
+            type="email" 
+            id="signup-email" 
+            placeholder="your@email.com" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <input 
+            type="password" 
+            id="signup-password" 
+            placeholder="At least 6 characters" 
+            required
+          >
+        </div>
+
+        <button type="submit">Sign Up</button>
+      </form>
+
+      <div id="signup-error" class="error hidden"></div>
+      <div id="signup-success" class="success hidden"></div>
+
+      <div class="toggle-link">
+        Already have an account? 
+        <a onclick="toggleForms()">Login</a>
+      </div>
+    </div>
+
+    <!-- LOGIN FORM (hidden by default) -->
+    <div id="login-section" class="hidden">
+      <h2>Login</h2>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input 
+            type="email" 
+            id="login-email" 
+            placeholder="your@email.com" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input 
+            type="password" 
+            id="login-password" 
+            placeholder="Your password" 
+            required
+          >
+        </div>
+
+        <button type="submit">Login</button>
+      </form>
+
+      <div id="login-error" class="error hidden"></div>
+
+      <div class="toggle-link">
+        Don't have an account? 
+        <a onclick="toggleForms()">Sign Up</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { signup, login } from "../js/auth.js";
+
+    // Toggle between signup and login forms
+    window.toggleForms = () => {
+      document.getElementById("signup-section").classList.toggle("hidden");
+      document.getElementById("login-section").classList.toggle("hidden");
+    };
+
+    // Handle signup form submission
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("signup-username").value;
+      const email = document.getElementById("signup-email").value;
+      const password = document.getElementById("signup-password").value;
+
+      const errorDiv = document.getElementById("signup-error");
+      const successDiv = document.getElementById("signup-success");
+
+      // Clear previous messages
+      errorDiv.classList.add("hidden");
+      successDiv.classList.add("hidden");
+
+      try {
+        const userId = await signup(email, password, username);
+        successDiv.textContent = "✅ Account created! Redirecting...";
+        successDiv.classList.remove("hidden");
+        
+        // Redirect after 2 seconds
+        setTimeout(() => {
+          window.location.href = "/pages/predict.html";
+        }, 2000);
+
+      } catch (error) {
+        errorDiv.textContent = "❌ " + error.message;
+        errorDiv.classList.remove("hidden");
+      }
+    });
+
+    // Handle login form submission
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+
+      const errorDiv = document.getElementById("login-error");
+
+      // Clear previous messages
+      errorDiv.classList.add("hidden");
+
+      try {
+        await login(email, password);
+        window.location.href = "/pages/predict.html";
+
+      } catch (error) {
+        errorDiv.textContent = "❌ " + error.message;
+        errorDiv.classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
