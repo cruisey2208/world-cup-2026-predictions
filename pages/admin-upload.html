@@ -20,11 +20,6 @@
     p {
       color: #666;
     }
-    input[type="file"] {
-      display: block;
-      margin: 20px 0;
-      padding: 10px;
-    }
     button {
       padding: 12px 20px;
       background-color: #4CAF50;
@@ -34,8 +29,12 @@
       cursor: pointer;
       font-size: 16px;
     }
-    button:hover {
+    button:hover:not(:disabled) {
       background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
     }
     .status {
       margin-top: 20px;
@@ -71,10 +70,10 @@
 <body>
   <div class="container">
     <h1>Admin - Upload Matches</h1>
-    <p>Select your matches.json file to upload all matches to Firestore.</p>
+    <p>Click the button below to upload all matches from matches.json to Firestore.</p>
+    <p><small>This will pull the latest matches.json file from your repository.</small></p>
     
-    <input type="file" id="file-input" accept=".json" />
-    <button onclick="uploadMatches()">Upload Matches</button>
+    <button id="upload-btn" onclick="uploadMatches()">Upload Matches from matches.json</button>
     
     <div id="status"></div>
   </div>
@@ -84,40 +83,38 @@
     import { collection, writeBatch, doc, query, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     window.uploadMatches = async () => {
-      const fileInput = document.getElementById("file-input");
       const statusDiv = document.getElementById("status");
-
-      if (!fileInput.files.length) {
-        showStatus("Please select a file", "error");
-        return;
-      }
-
-      const file = fileInput.files[0];
+      const uploadBtn = document.getElementById("upload-btn");
 
       try {
+        uploadBtn.disabled = true;
         statusDiv.classList.add("show");
-        showStatus("Reading file...", "loading");
+        showStatus("Fetching matches.json from repository...", "loading");
 
-        // Read file
-        const text = await file.text();
-        const data = JSON.parse(text);
+        // Fetch matches.json from GitHub repo
+        const response = await fetch("../matches.json");
+        if (!response.ok) {
+          throw new Error(`Failed to fetch matches.json: ${response.status}`);
+        }
+
+        const data = await response.json();
         const matches = data.matches;
 
         if (!Array.isArray(matches)) {
           throw new Error("Invalid format: matches should be an array");
         }
 
-        showStatus(`Uploading ${matches.length} matches...`, "loading");
+        showStatus(`Found ${matches.length} matches. Uploading...`, "loading");
 
         // Check if matches collection already has data
         const matchesRef = collection(db, "matches");
         const existingMatches = await getDocs(query(matchesRef));
         
         if (existingMatches.size > 0) {
-          const confirmed = confirm(`${existingMatches.size} matches already exist in the database. Do you want to replace them?`);
+          const confirmed = confirm(`${existingMatches.size} matches already exist in the database. Do you want to replace them all?`);
           if (!confirmed) {
             showStatus("Upload cancelled", "info");
-            fileInput.value = "";
+            uploadBtn.disabled = false;
             return;
           }
         }
@@ -155,15 +152,16 @@
 
           await batch.commit();
           uploaded += batchMatches.length;
-          showStatus(`Uploaded ${uploaded} / ${matches.length} matches...`, "loading");
+          showStatus(`Uploading... ${uploaded} / ${matches.length} matches`, "loading");
         }
 
         showStatus(`✅ Successfully uploaded ${matches.length} matches!`, "success");
-        fileInput.value = ""; // Clear input
+        uploadBtn.disabled = false;
 
       } catch (error) {
         console.error("Error:", error);
         showStatus(`❌ Error: ${error.message}`, "error");
+        uploadBtn.disabled = false;
       }
     };
 
