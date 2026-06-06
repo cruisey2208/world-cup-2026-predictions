@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin - Upload Matches</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .container {
+      border: 1px solid #ddd;
+      padding: 30px;
+      border-radius: 8px;
+    }
+    h1 {
+      color: #333;
+    }
+    p {
+      color: #666;
+    }
+    input[type="file"] {
+      display: block;
+      margin: 20px 0;
+      padding: 10px;
+    }
+    button {
+      padding: 12px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      display: none;
+    }
+    .status.show {
+      display: block;
+    }
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .loading {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    .info {
+      background-color: #e2e3e5;
+      color: #383d41;
+      border: 1px solid #d6d8db;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Admin - Upload Matches</h1>
+    <p>Select your matches.json file to upload all matches to Firestore.</p>
+    
+    <input type="file" id="file-input" accept=".json" />
+    <button onclick="uploadMatches()">Upload Matches</button>
+    
+    <div id="status"></div>
+  </div>
+
+  <script type="module">
+    import { db } from "../js/firebase-config.js";
+    import { collection, writeBatch, doc, query, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    window.uploadMatches = async () => {
+      const fileInput = document.getElementById("file-input");
+      const statusDiv = document.getElementById("status");
+
+      if (!fileInput.files.length) {
+        showStatus("Please select a file", "error");
+        return;
+      }
+
+      const file = fileInput.files[0];
+
+      try {
+        statusDiv.classList.add("show");
+        showStatus("Reading file...", "loading");
+
+        // Read file
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const matches = data.matches;
+
+        if (!Array.isArray(matches)) {
+          throw new Error("Invalid format: matches should be an array");
+        }
+
+        showStatus(`Uploading ${matches.length} matches...`, "loading");
+
+        // Check if matches collection already has data
+        const matchesRef = collection(db, "matches");
+        const existingMatches = await getDocs(query(matchesRef));
+        
+        if (existingMatches.size > 0) {
+          const confirmed = confirm(`${existingMatches.size} matches already exist in the database. Do you want to replace them?`);
+          if (!confirmed) {
+            showStatus("Upload cancelled", "info");
+            fileInput.value = "";
+            return;
+          }
+        }
+
+        // Upload in batches (Firestore limits batch writes to 500)
+        const batchSize = 100;
+        let uploaded = 0;
+
+        for (let i = 0; i < matches.length; i += batchSize) {
+          const batch = writeBatch(db);
+          const batchMatches = matches.slice(i, i + batchSize);
+
+          batchMatches.forEach((match, index) => {
+            const matchId = `match_${i + index + 1}`;
+            const matchRef = doc(collection(db, "matches"), matchId);
+
+            batch.set(matchRef, {
+              match_number: match.match_number,
+              home_team: match.home_team,
+              away_team: match.away_team,
+              match_date: new Date(match.match_date),
+              location: match.location || "",
+              stadium: match.stadium || "",
+              group: match.group || "",
+              home_score: match.home_score || "",
+              away_score: match.away_score || "",
+              actual_winner: match.actual_winner || "",
+              status: match.status || "scheduled",
+              odds: {},
+              odds_source: null,
+              last_odds_update: null,
+              created_at: new Date()
+            });
+          });
+
+          await batch.commit();
+          uploaded += batchMatches.length;
+          showStatus(`Uploaded ${uploaded} / ${matches.length} matches...`, "loading");
+        }
+
+        showStatus(`✅ Successfully uploaded ${matches.length} matches!`, "success");
+        fileInput.value = ""; // Clear input
+
+      } catch (error) {
+        console.error("Error:", error);
+        showStatus(`❌ Error: ${error.message}`, "error");
+      }
+    };
+
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById("status");
+      statusDiv.textContent = message;
+      statusDiv.className = `status show ${type}`;
+    }
+  </script>
+</body>
+</html>
