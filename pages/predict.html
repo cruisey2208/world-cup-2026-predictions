@@ -5,7 +5,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 1000px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 20px;
       background-color: #f5f5f5;
@@ -23,6 +23,11 @@
     h1 {
       margin: 0;
     }
+    .header-right {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
     .logout-btn {
       padding: 10px 20px;
       background-color: #d9534f;
@@ -33,6 +38,33 @@
     }
     .logout-btn:hover {
       background-color: #c9302c;
+    }
+    .odds-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .odds-selector label {
+      margin: 0;
+      font-weight: bold;
+      color: #333;
+    }
+    .odds-selector select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 200px;
+    }
+    .odds-update-status {
+      font-size: 12px;
+      color: #666;
+      margin-left: auto;
     }
     .matches-container {
       display: grid;
@@ -60,6 +92,19 @@
     }
     .vs {
       color: #999;
+    }
+    .odds-display {
+      background: #f9f9f9;
+      padding: 12px;
+      border-radius: 4px;
+      margin: 15px 0;
+      font-size: 13px;
+      border-left: 4px solid #4CAF50;
+    }
+    .odds-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
     }
     .prediction-form {
       margin-top: 15px;
@@ -114,8 +159,18 @@
 <body>
   <header>
     <h1>⚽ World Cup Predictions</h1>
-    <button class="logout-btn" onclick="handleLogout()">Logout</button>
+    <div class="header-right">
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
+    </div>
   </header>
+
+  <div class="odds-selector">
+    <label for="bookmaker-select">View Odds From:</label>
+    <select id="bookmaker-select" onchange="handleBookmakerChange()">
+      <option value="">-- Select a Bookmaker --</option>
+    </select>
+    <div class="odds-update-status" id="odds-status"></div>
+  </div>
 
   <div id="locked-section" style="display: none;">
     <div class="locked-message">
@@ -129,23 +184,75 @@
   <script type="module">
     import { getAllMatches, getUserPredictions, submitPrediction, getUserPredictionForMatch } from "../js/predictions.js";
     import { logout } from "../js/auth.js";
+    import { refreshOddsIfNeeded } from "../js/odds-fetcher.js";
+
+    let allMatches = [];
+    let selectedBookmaker = "";
+
+    // Initialize on page load
+    async function initialize() {
+      // Try to refresh odds in background
+      const oddsResult = await refreshOddsIfNeeded();
+      console.log("Odds refresh result:", oddsResult);
+      updateOddsStatus(oddsResult);
+
+      // Load matches
+      loadMatches();
+    }
+
+    // Update status message
+    function updateOddsStatus(result) {
+      const statusDiv = document.getElementById("odds-status");
+      if (result.refreshed) {
+        statusDiv.textContent = `✓ Odds updated (${result.updated} matches)`;
+        statusDiv.style.color = "#28a745";
+      } else if (result.reason) {
+        statusDiv.textContent = `ℹ ${result.reason}`;
+        statusDiv.style.color = "#666";
+      }
+    }
 
     // Load and display all matches
     async function loadMatches() {
-      const matches = await getAllMatches();
+      allMatches = await getAllMatches();
       const predictions = await getUserPredictions();
       const container = document.getElementById("matches-container");
 
+      // Build bookmaker options from first match with odds
+      buildBookmakerOptions();
+
       container.innerHTML = "";
 
-      matches.forEach((match) => {
-        // Check if user has already predicted this match
+      allMatches.forEach((match) => {
         const existingPrediction = predictions[match.id];
+
+        // Get odds display if bookmaker selected
+        let oddsHTML = "";
+        if (selectedBookmaker && match.odds && match.odds[selectedBookmaker]) {
+          const matchOdds = match.odds[selectedBookmaker];
+          oddsHTML = `
+            <div class="odds-display">
+              <strong>Odds from ${selectedBookmaker}:</strong>
+              <div class="odds-row">
+                <span>${match.homeTeam} Win:</span>
+                <strong>${matchOdds.home_win.toFixed(2)}</strong>
+              </div>
+              <div class="odds-row">
+                <span>Draw:</span>
+                <strong>${matchOdds.draw.toFixed(2)}</strong>
+              </div>
+              <div class="odds-row">
+                <span>${match.awayTeam} Win:</span>
+                <strong>${matchOdds.away_win.toFixed(2)}</strong>
+              </div>
+            </div>
+          `;
+        }
 
         const matchHTML = `
           <div class="match-card">
             <div class="match-header">
-              Match ${match.matchNumber} • ${new Date(match.matchDate.toDate()).toLocaleDateString()}
+              Match ${match.matchNumber} • ${new Date(match.matchDate.toDate()).toLocaleDateString()} • ${match.stadium || match.location}
             </div>
             
             <div class="teams">
@@ -153,6 +260,8 @@
               <div class="vs">vs</div>
               <div>${match.awayTeam}</div>
             </div>
+
+            ${oddsHTML}
 
             <form class="prediction-form" onsubmit="submitMatchPrediction(event, '${match.id}', '${match.homeTeam}', '${match.awayTeam}')">
               <div class="form-group">
@@ -194,6 +303,40 @@
       });
     }
 
+    // Build bookmaker options from matches data
+    function buildBookmakerOptions() {
+      const bookmakerSet = new Set();
+      
+      allMatches.forEach((match) => {
+        if (match.odds) {
+          Object.keys(match.odds).forEach((bookmaker) => {
+            bookmakerSet.add(bookmaker);
+          });
+        }
+      });
+
+      const select = document.getElementById("bookmaker-select");
+      const currentValue = select.value;
+      
+      // Clear and rebuild options
+      select.innerHTML = '<option value="">-- Select a Bookmaker --</option>';
+      
+      Array.from(bookmakerSet).sort().forEach((bookmaker) => {
+        const option = document.createElement("option");
+        option.value = bookmaker;
+        option.textContent = bookmaker;
+        select.appendChild(option);
+      });
+
+      select.value = currentValue;
+    }
+
+    // Handle bookmaker change
+    window.handleBookmakerChange = () => {
+      selectedBookmaker = document.getElementById("bookmaker-select").value;
+      loadMatches();
+    };
+
     // Submit prediction
     window.submitMatchPrediction = async (event, matchId, homeTeam, awayTeam) => {
       event.preventDefault();
@@ -206,7 +349,6 @@
       try {
         await submitPrediction(matchId, winner, score);
         errorDiv.style.display = "none";
-        // Reload predictions to show update
         loadMatches();
       } catch (error) {
         errorDiv.textContent = "❌ " + error.message;
@@ -220,8 +362,8 @@
       window.location.href = "/pages/auth.html";
     };
 
-    // Initial load
-    loadMatches();
+    // Initialize on load
+    initialize();
   </script>
 </body>
 </html>
